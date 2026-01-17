@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>나의 백패킹 적합도 알아보기</title>
+
+<style>
+body{
+  margin:0;
+  font-family:"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  background:#0b0f17;
+  color:#e8eefc;
+}
+header{
+  text-align:center;
+  margin:20px 0;
+}
+main{
+  max-width:900px;
+  margin:0 auto 40px;
+  padding:0 16px;
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:16px;
+}
+@media (max-width:900px){
+  main{ grid-template-columns:1fr; }
+}
+.card{
+  background:#121a2a;
+  border-radius:16px;
+  padding:16px;
+}
+.question{
+  border-top:1px solid #2a3350;
+  padding-top:12px;
+  margin-top:12px;
+}
+.options{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:8px;
+}
+.opt{
+  border:1px solid #2a3350;
+  border-radius:12px;
+  padding:8px 12px;
+  cursor:pointer;
+  user-select:none;
+}
+.opt:hover{ background:#1b2740; }
+
+.summary{ position:sticky; top:20px; }
+.big{ font-size:30px; font-weight:700; }
+
+.bar{
+  height:10px;
+  background:#2a3350;
+  border-radius:10px;
+  margin:10px 0;
+}
+.fill{
+  height:100%;
+  width:0%;
+}
+.bar-low { background:#dc2626; }   /* red */
+.bar-mid { background:#facc15; }   /* yellow */
+.bar-high{ background:#16a34a; }   /* green */
+
+.verdict{
+  margin-top:10px;
+  padding:10px;
+  border-radius:12px;
+}
+
+button{
+  margin-top:8px;
+  padding:8px 12px;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>나의 백패킹 적합도 알아보기 🏕️</h1>
+  <p>
+    각 문항에 응답하세요.<br>
+    <strong>총점이 높을수록 백패킹 적합도가 높습니다.</strong>
+  </p>
+</header>
+
+<main>
+
+<section class="card">
+  <div id="questionList"></div>
+</section>
+
+<aside class="card summary">
+  <div class="big">
+    <span id="scoreNow">0</span> / <span id="scoreMax">40</span>
+    (<span id="scorePercent">0</span>% <span id="scoreEmoji">🙂</span>)
+  </div>
+
+  <div class="bar">
+    <div class="fill" id="fillBar"></div>
+  </div>
+
+  <div id="verdictBox" class="verdict">
+    <strong id="verdictTitle">응답을 시작하세요</strong>
+    <div id="verdictText"></div>
+  </div>
+
+  <button id="btnReset" type="button">초기화</button>
+</aside>
+
+</main>
+
+<script>
+const QUESTIONS = [
+  {
+    id: "Q1",
+    text: "캠핑 경험이 있으신가요?",
+    options: [
+      { label: "있습니다", score: 5 },
+      { label: "없습니다", score: 1 }
+    ]
+  },
+  {
+    id: "Q2",
+    text: "캠핑을 갈 때 무엇을 더 중요하게 생각하시나요?",
+    options: [
+      { label: "멋진 풍경 (100%)", score: 5 },
+      { label: "멋진 풍경 (70%) / 안락한 휴식 (30%)", score: 4 },
+      { label: "멋진 풍경과 안락한 휴식", score: 3 },
+      { label: "멋진 풍경 (30%) / 안락한 휴식 (70%)", score: 2 },
+      { label: "안락한 휴식 (100%)", score: 1 }
+    ]
+  },
+  {
+    id: "Q3",
+    text: "화장실이 없는 곳에서의 캠핑을 어떻게 생각하시나요?",
+    options: [
+      { label: "전혀 문제 없음", score: 5 },
+      { label: "조금 불편하지만 가능", score: 4 },
+      { label: "보통이다", score: 3 },
+      { label: "많이 불편하다", score: 2 },
+      { label: "절대 불가", score: 1 }
+    ]
+  },
+  {
+    id: "Q4",
+    text: "체력에 자신이 있는 편인가요?",
+    options: [
+      { label: "매우 자신 있다", score: 5 },
+      { label: "어느 정도 자신 있다", score: 4 },
+      { label: "보통이다", score: 3 },
+      { label: "자신 없는 편이다", score: 2 },
+      { label: "전혀 자신이 없다", score: 1 }
+    ]
+  },
+  {
+    id: "Q5",
+    text: "야영 중 마주칠 수 있는 곤충과 벌레에 민감하신가요?",
+    options: [
+      { label: "전혀 문제 없다", score: 5 },
+      { label: "약간 신경 쓰인다", score: 4 },
+      { label: "보통이다", score: 3 },
+      { label: "꽤 민감한 편이다", score: 2 },
+      { label: "몹시 민감하다", score: 1 }
+    ]
+  },
+  {
+    id: "Q6",
+    text: "야외활동을 할 때, 악천후나 일교차가 큰 날에 민감하신가요?",
+    options: [
+      { label: "전혀 민감하지 않다", score: 5 },
+      { label: "약간 민감한 편이다", score: 4 },
+      { label: "보통이다", score: 3 },
+      { label: "상당히 민감하다", score: 2 },
+      { label: "매우 민감하다", score: 1 }
+    ]
+  },
+  {
+    id: "Q7",
+    text: "2~3일간 샤워하지 못해도 괜찮으신가요?",
+    options: [
+      { label: "전혀 문제 없다", score: 5 },
+      { label: "괜찮은 편이다", score: 4 },
+      { label: "보통이다", score: 3 },
+      { label: "꽤 불편하다", score: 2 },
+      { label: "절대 불가", score: 1 }
+    ]
+  },
+  {
+    id: "Q8",
+    text: "라면, 동결건조식량 등 단순한 식사를 계속 먹는 것에 거부감이 있으신가요?",
+    options: [
+      { label: "전혀 거부감 없다", score: 5 },
+      { label: "크게 거부감은 없다", score: 4 },
+      { label: "보통이다", score: 3 },
+      { label: "다소 거부감이 있다", score: 2 },
+      { label: "매우 거부감이 있다", score: 1 }
+    ]
+  }
+];
+
+const ql = document.getElementById("questionList");
+const sn = document.getElementById("scoreNow");
+const fb = document.getElementById("fillBar");
+const vt = document.getElementById("verdictTitle");
+const vtx = document.getElementById("verdictText");
+const sp = document.getElementById("scorePercent");
+const se = document.getElementById("scoreEmoji");
+
+function render(){
+  ql.innerHTML="";
+  QUESTIONS.forEach(q=>{
+    const d=document.createElement("div");
+    d.className="question";
+    d.innerHTML=`<strong>${q.text}</strong>`;
+    const o=document.createElement("div");
+    o.className="options";
+    q.options.forEach((opt,i)=>{
+      o.innerHTML+=`
+        <label class="opt">
+          <input type="radio" name="${q.id}" value="${opt.score}">
+          ${i+1}. ${opt.label}
+        </label>`;
+    });
+    d.appendChild(o);
+    ql.appendChild(d);
+  });
+  ql.addEventListener("change",update);
+}
+
+function update(){
+  let total=0;
+  let answered=0;
+
+  QUESTIONS.forEach(q=>{
+    const c=document.querySelector(`input[name="${q.id}"]:checked`);
+    if(c){ total+=Number(c.value); answered++; }
+  });
+
+  sn.textContent=total;
+  fb.style.width=`${(total/40)*100}%`;
+
+  // 퍼센트 계산 (8~40)
+  let percent=Math.round(((total-8)/(40-8))*100);
+  if(percent<0) percent=0;
+  if(percent>100) percent=100;
+  sp.textContent=percent;
+
+  // 이모지
+  if(percent<=33) se.textContent="😵";
+  else if(percent<=66) se.textContent="🙂";
+  else se.textContent="🏕️";
+
+  // 색상 초기화
+  fb.className="fill";
+
+  if(answered===0){
+    vt.textContent="응답을 시작하세요";
+    vtx.textContent="";
+    return;
+  }
+
+  if(total<=20){
+    fb.classList.add("bar-low");
+    vt.textContent="적합도 : 낮음";
+    vtx.textContent="많은 스트레스를 느낄 가능성이 있습니다";
+  }
+  else if(total<=30){
+    fb.classList.add("bar-mid");
+    vt.textContent="적합도 : 보통";
+    vtx.textContent="백패킹에 도전해보세요!";
+  }
+  else{
+    fb.classList.add("bar-high");
+    vt.textContent="적합도 : 높음";
+    vtx.textContent="당장 배낭을 메도 좋습니다";
+  }
+}
+
+document.getElementById("btnReset").addEventListener("click",()=>location.reload());
+
+render();
+</script>
+
+</body>
+</html>
