@@ -6,16 +6,41 @@
 <title>나의 백패킹 적합도 알아보기</title>
 
 <style>
+:root{
+  /* 로고 톤에 맞춘 팔레트(크림 + 올리브) */
+  --bg: #D7D8C8;        /* 크림 배경 */
+  --card: #C9CBB8;      /* 카드 배경 */
+  --border: #1F281533;  /* 올리브 라인(투명도 포함) */
+  --text: #1F2815;      /* 메인 텍스트(진한 올리브) */
+  --muted: #5D6251;     /* 보조 텍스트 */
+
+  --hover: #B8BAA6;     /* 선택지 hover */
+  --bar-base: #1F281526;/* 막대바 배경 */
+
+  /* 점수 구간 색(요구: 빨강/노랑/초록) - 로고 톤에 맞게 톤다운 */
+  --low:  #7A2E2E;      /* brick red */
+  --mid:  #B38B22;      /* mustard */
+  --high: #2F5D3A;      /* forest */
+}
+
 body{
   margin:0;
   font-family:"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
-  background:#0b0f17;
-  color:#e8eefc;
+  background: var(--bg);
+  color: var(--text);
 }
+
 header{
   text-align:center;
   margin:20px 0;
+  padding:0 12px;
 }
+
+header p{
+  margin:8px 0 0;
+  color: var(--muted);
+}
+
 main{
   max-width:900px;
   margin:0 auto 40px;
@@ -24,63 +49,106 @@ main{
   grid-template-columns:1.2fr .8fr;
   gap:16px;
 }
+
 @media (max-width:900px){
   main{ grid-template-columns:1fr; }
 }
+
 .card{
-  background:#121a2a;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius:16px;
   padding:16px;
 }
+
 .question{
-  border-top:1px solid #2a3350;
+  border-top:1px solid var(--border);
   padding-top:12px;
   margin-top:12px;
 }
+
 .options{
   display:flex;
-  flex-direction:column;
+  flex-direction:column; /* ✅ 선택지 한 줄씩 */
   gap:8px;
-  margin-top:8px;
+  margin-top:10px;
 }
+
 .opt{
-  border:1px solid #2a3350;
+  border:1px solid var(--border);
   border-radius:12px;
-  padding:8px 12px;
+  padding:10px 12px;
   cursor:pointer;
   user-select:none;
+  background: rgba(255,255,255,0.18);
 }
-.opt:hover{ background:#1b2740; }
 
-.summary{ position:sticky; top:20px; }
-.big{ font-size:30px; font-weight:700; }
+.opt:hover{
+  background: var(--hover);
+}
+
+.opt input{
+  margin-right:8px;
+  accent-color: var(--text);
+}
+
+.summary{
+  position:sticky;
+  top:20px;
+}
+
+.big{
+  font-size:30px;
+  font-weight:800;
+}
 
 .bar{
   height:10px;
-  background:#2a3350;
+  background: var(--bar-base);
   border-radius:10px;
   margin:10px 0;
+  border: 1px solid var(--border);
+  overflow:hidden;
 }
+
 .fill{
   height:100%;
   width:0%;
 }
-.bar-low { background:#dc2626; }   /* red */
-.bar-mid { background:#facc15; }   /* yellow */
-.bar-high{ background:#16a34a; }   /* green */
+
+.bar-low { background: var(--low); }
+.bar-mid { background: var(--mid); }
+.bar-high{ background: var(--high); }
 
 .verdict{
   margin-top:10px;
-  padding:10px;
+  padding:12px;
   border-radius:12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.14);
+}
+
+#verdictTitle{
+  display:block;
+  margin-bottom:4px;
+}
+
+#verdictText{
+  color: var(--muted);
 }
 
 button{
-  margin-top:8px;
-  padding:8px 12px;
+  margin-top:10px;
+  padding:10px 12px;
   border-radius:10px;
-  border:none;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.22);
+  color: var(--text);
   cursor:pointer;
+}
+
+button:hover{
+  background: rgba(255,255,255,0.35);
 }
 </style>
 </head>
@@ -218,77 +286,88 @@ const vtx = document.getElementById("verdictText");
 const sp = document.getElementById("scorePercent");
 const se = document.getElementById("scoreEmoji");
 
+// 현재 문항 수 기준: 최소 8점(모두 1점), 최대 40점(모두 5점)
+const MIN_SCORE = 8;
+const MAX_SCORE = 40;
+
 function render(){
-  ql.innerHTML="";
-  QUESTIONS.forEach(q=>{
-    const d=document.createElement("div");
-    d.className="question";
-    d.innerHTML=`<strong>${q.text}</strong>`;
-    const o=document.createElement("div");
-    o.className="options";
-    q.options.forEach((opt,i)=>{
-      o.innerHTML+=`
+  ql.innerHTML = "";
+  QUESTIONS.forEach(q => {
+    const d = document.createElement("div");
+    d.className = "question";
+    d.innerHTML = `<strong>${q.text}</strong>`;
+
+    const o = document.createElement("div");
+    o.className = "options";
+
+    q.options.forEach((opt, i) => {
+      o.innerHTML += `
         <label class="opt">
           <input type="radio" name="${q.id}" value="${opt.score}">
-          ${i+1}. ${opt.label}
+          ${i + 1}. ${opt.label}
         </label>`;
     });
+
     d.appendChild(o);
     ql.appendChild(d);
   });
-  ql.addEventListener("change",update);
+
+  ql.addEventListener("change", update);
 }
 
 function update(){
-  let total=0;
-  let answered=0;
+  let total = 0;
+  let answered = 0;
 
-  QUESTIONS.forEach(q=>{
-    const c=document.querySelector(`input[name="${q.id}"]:checked`);
-    if(c){ total+=Number(c.value); answered++; }
+  QUESTIONS.forEach(q => {
+    const c = document.querySelector(`input[name="${q.id}"]:checked`);
+    if (c) { total += Number(c.value); answered++; }
   });
 
-  sn.textContent=total;
-  fb.style.width=`${(total/40)*100}%`;
+  sn.textContent = total;
+  fb.style.width = `${(total / MAX_SCORE) * 100}%`;
 
   // 퍼센트 계산 (8~40)
-  let percent=Math.round(((total-8)/(40-8))*100);
-  if(percent<0) percent=0;
-  if(percent>100) percent=100;
-  sp.textContent=percent;
+  let percent = Math.round(((total - MIN_SCORE) / (MAX_SCORE - MIN_SCORE)) * 100);
+  if (percent < 0) percent = 0;
+  if (percent > 100) percent = 100;
+  sp.textContent = percent;
 
   // 이모지
-  if(percent<=33) se.textContent="😵";
-  else if(percent<=66) se.textContent="🙂";
-  else se.textContent="🏕️";
+  if (percent <= 33) se.textContent = "😵";
+  else if (percent <= 66) se.textContent = "🙂";
+  else se.textContent = "🏕️";
 
-  // 색상 초기화
-  fb.className="fill";
+  // 막대바 색 초기화
+  fb.className = "fill";
 
-  if(answered===0){
-    vt.textContent="응답을 시작하세요";
-    vtx.textContent="";
+  if (answered === 0){
+    vt.textContent = "응답을 시작하세요";
+    vtx.textContent = "";
     return;
   }
 
-  if(total<=20){
+  // 점수 구간별 판정 (요구사항)
+  if (total >= 8 && total <= 20){
     fb.classList.add("bar-low");
-    vt.textContent="적합도 : 낮음";
-    vtx.textContent="많은 스트레스를 느낄 가능성이 있습니다";
-  }
-  else if(total<=30){
+    vt.textContent = "적합도 : 낮음";
+    vtx.textContent = "많은 스트레스를 느낄 가능성이 있습니다";
+  } else if (total >= 21 && total <= 30){
     fb.classList.add("bar-mid");
-    vt.textContent="적합도 : 보통";
-    vtx.textContent="백패킹에 도전해보세요!";
-  }
-  else{
+    vt.textContent = "적합도 : 보통";
+    vtx.textContent = "백패킹에 도전해보세요!";
+  } else if (total >= 31 && total <= 40){
     fb.classList.add("bar-high");
-    vt.textContent="적합도 : 높음";
-    vtx.textContent="당장 배낭을 메도 좋습니다";
+    vt.textContent = "적합도 : 높음";
+    vtx.textContent = "당장 배낭을 메도 좋습니다";
+  } else {
+    // 범위 밖(예외 방지)
+    vt.textContent = "점수 계산";
+    vtx.textContent = "";
   }
 }
 
-document.getElementById("btnReset").addEventListener("click",()=>location.reload());
+document.getElementById("btnReset").addEventListener("click", () => location.reload());
 
 render();
 </script>
